@@ -1,6 +1,9 @@
 package jro.pry.PasarelaPagos.service;
 
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
+import jro.pry.PasarelaPagos.exception.BusinessException;
+import jro.pry.PasarelaPagos.exception.ConflictException;
+import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.Transaction;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.TransactionRepository;
@@ -23,17 +26,17 @@ public class TransactionService {
     @Transactional
     public Transaction processTransaction(TransactionRequestDTO transactionRequest){
         if(transactionRepository.findByTransactionReference(transactionRequest.getTransactionReference()).isPresent()){
-            throw new RuntimeException("Ya existe una transaccion con esta referencia..");
+            throw new ConflictException("Ya existe una transacción con esta referencia");
         }
 
         Wallet sourceWalletExist = walletRepository.findById(transactionRequest.getSourceWalletId())
                 .orElseThrow(() -> {
-                    throw  new RuntimeException("No existe la billetera de origen");
+                    throw new ResourceNotFoundException("No existe la billetera de origen");
                 });
 
         Wallet targetWalletExist = walletRepository.findById(transactionRequest.getTargetWalletId())
                 .orElseThrow(() -> {
-                    throw new RuntimeException("No existe la billetera de destino");
+                    throw new ResourceNotFoundException("No existe la billetera de destino");
                 });
 
         if(sourceWalletExist.getBalance().compareTo(transactionRequest.getAmount()) >= 0){
@@ -57,7 +60,7 @@ public class TransactionService {
             return transactionRepository.save(transaction);
 
         }else{
-            throw new RuntimeException("Fondos insuficientes");
+            throw new BusinessException("Fondos insuficientes");
         }
     }
 

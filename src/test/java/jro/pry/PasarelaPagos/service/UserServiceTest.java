@@ -3,6 +3,7 @@ package jro.pry.PasarelaPagos.service;
 import jro.pry.PasarelaPagos.dto.UserRequestDTO;
 import jro.pry.PasarelaPagos.dto.UserResponseDTO;
 import jro.pry.PasarelaPagos.dto.UserUpdateDTO;
+import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.UserRepository;
@@ -79,6 +80,16 @@ class UserServiceTest {
         Assertions.assertNotNull(response);
         Assertions.assertEquals(1L, response.getId());
         Assertions.assertEquals("example@test.com", response.getEmail());
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenUserDoesNotExist() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> userService.findById(99L));
+
+        Assertions.assertEquals("Usuario no encontrado", exception.getMessage());
     }
 
     @Test

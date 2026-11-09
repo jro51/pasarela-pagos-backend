@@ -1,6 +1,10 @@
 package jro.pry.PasarelaPagos.service;
 
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
+import jro.pry.PasarelaPagos.exception.BusinessException;
+import jro.pry.PasarelaPagos.exception.ConflictException;
+import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
+import jro.pry.PasarelaPagos.model.Transaction;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.TransactionRepository;
 import jro.pry.PasarelaPagos.repository.WalletRepository;
@@ -28,16 +32,50 @@ class TransactionServiceTest {
     @InjectMocks
     private TransactionService transactionService;
 
-    //Given - When - Then
+    @Test
+    void shouldThrowConflictWhenReferenceAlreadyExists() {
+        TransactionRequestDTO request = buildRequest();
+        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001"))
+                .thenReturn(Optional.of(new Transaction()));
+
+        ConflictException exception = Assertions.assertThrows(ConflictException.class,
+                () -> transactionService.processTransaction(request));
+
+        Assertions.assertEquals("Ya existe una transacción con esta referencia", exception.getMessage());
+    }
 
     @Test
-    void shouldThrowExceptionWhenBalanceIsInsufficient(){
-        //Given
-        TransactionRequestDTO request = new TransactionRequestDTO();
-        request.setSourceWalletId(1L);
-        request.setTargetWalletId(2L);
-        request.setAmount(BigDecimal.valueOf(100.00));
-        request.setTransactionReference("REF-TRANSACTION-001");
+    void shouldThrowNotFoundWhenSourceWalletDoesNotExist() {
+        TransactionRequestDTO request = buildRequest();
+        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
+        when(walletRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> transactionService.processTransaction(request));
+
+        Assertions.assertEquals("No existe la billetera de origen", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenTargetWalletDoesNotExist() {
+        TransactionRequestDTO request = buildRequest();
+        Wallet sourceWallet = new Wallet();
+        sourceWallet.setId(1L);
+        sourceWallet.setBalance(BigDecimal.valueOf(100.00));
+
+        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
+        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
+        when(walletRepository.findById(2L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> transactionService.processTransaction(request));
+
+        Assertions.assertEquals("No existe la billetera de destino", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowBusinessExceptionWhenBalanceIsInsufficient() {
+        TransactionRequestDTO request = buildRequest();
 
         Wallet sourceWallet = new Wallet();
         sourceWallet.setId(1L);
@@ -45,18 +83,24 @@ class TransactionServiceTest {
 
         Wallet targetWallet = new Wallet();
         targetWallet.setId(2L);
-        targetWallet.setBalance(BigDecimal.valueOf(0.00));
+        targetWallet.setBalance(BigDecimal.ZERO);
 
-        //When
         when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
         when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
         when(walletRepository.findById(2L)).thenReturn(Optional.of(targetWallet));
 
-        //Then
-        RuntimeException exception = Assertions.assertThrows(RuntimeException.class, () -> {
-           transactionService.processTransaction(request);
-        });
+        BusinessException exception = Assertions.assertThrows(BusinessException.class,
+                () -> transactionService.processTransaction(request));
 
         Assertions.assertEquals("Fondos insuficientes", exception.getMessage());
+    }
+
+    private TransactionRequestDTO buildRequest() {
+        TransactionRequestDTO request = new TransactionRequestDTO();
+        request.setSourceWalletId(1L);
+        request.setTargetWalletId(2L);
+        request.setAmount(BigDecimal.valueOf(100.00));
+        request.setTransactionReference("REF-TRANSACTION-001");
+        return request;
     }
 }

@@ -4,6 +4,7 @@ import jro.pry.PasarelaPagos.dto.UserRequestDTO;
 import jro.pry.PasarelaPagos.dto.UserResponseDTO;
 import jro.pry.PasarelaPagos.dto.UserUpdateDTO;
 import jro.pry.PasarelaPagos.dto.WalletResponseDTO;
+import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.UserRepository;
@@ -36,7 +37,7 @@ public class UserService {
 
     public UserResponseDTO findById(Long id){
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
         return toResponse(user);
     }
@@ -65,7 +66,7 @@ public class UserService {
 
     public UserResponseDTO update(UserUpdateDTO request, Long id){
         User userExist = userRepository.findById(id).orElseThrow(() -> {
-            throw new RuntimeException("No se encontró al usuario");
+            throw new ResourceNotFoundException("Usuario no encontrado");
         });
 
         userExist.setEmail(request.getEmail());
@@ -78,7 +79,7 @@ public class UserService {
 
     public void delete(Long id){
         User userExist = userRepository.findById(id).orElseThrow(() -> {
-            throw new RuntimeException("No se encontró al usuario");
+            throw new ResourceNotFoundException("Usuario no encontrado");
         });
         userRepository.delete(userExist);
     }

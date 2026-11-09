@@ -1,6 +1,7 @@
 package jro.pry.PasarelaPagos.service;
 
 import jro.pry.PasarelaPagos.dto.WalletResponseDTO;
+import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.WalletRepository;
@@ -53,7 +54,7 @@ class WalletServiceTest {
         //Simulamos que no encuentra nada con ese id
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
-        RuntimeException exception = Assertions.assertThrows(RuntimeException.class, () -> {
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class, () -> {
            walletService.findByIdUser(userId);
         });
 
