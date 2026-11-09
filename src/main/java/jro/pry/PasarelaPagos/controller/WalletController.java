@@ -1,0 +1,26 @@
+package jro.pry.PasarelaPagos.controller;
+
+import jro.pry.PasarelaPagos.dto.WalletResponseDTO;
+import jro.pry.PasarelaPagos.service.WalletService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/wallets")
+public class WalletController {
+
+    private final WalletService walletService;
+
+    public WalletController(WalletService walletService) {
+        this.walletService = walletService;
+    }
+
+    @GetMapping("/users/{id}")
+    public ResponseEntity<WalletResponseDTO> getWalletByUserId(@PathVariable Long id){
+        return ResponseEntity.status(HttpStatus.OK).body(walletService.findByIdUser(id));
+    }
+}
