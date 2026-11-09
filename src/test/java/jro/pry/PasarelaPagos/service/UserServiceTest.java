@@ -12,6 +12,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,9 @@ class UserServiceTest {
 
     @Mock
     private WalletRepository walletRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserService userService;
@@ -80,7 +84,10 @@ class UserServiceTest {
         User user1 = new User();
         user1.setId(1L);
         user1.setEmail("example@test.com");
+        user1.setPassword("123456");
         user1.setRole("USER");
+
+        when(passwordEncoder.encode(ArgumentMatchers.anyString())).thenReturn("password-hasheado");
 
         when(userRepository.save(ArgumentMatchers.any(User.class))).thenReturn(user1);
 
@@ -90,6 +97,7 @@ class UserServiceTest {
 
         Assertions.assertNotNull(createdUser);
         Assertions.assertEquals("example@test.com", createdUser.getEmail());
+        Assertions.assertEquals("password-hasheado", createdUser.getPassword());
     }
 
     @Test
