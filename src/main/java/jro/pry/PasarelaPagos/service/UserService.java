@@ -46,6 +46,7 @@ public class UserService {
 
     public User create(User user){
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setRole(normalizeRole(user.getRole()));
         User newUser = userRepository.save(user);
 
         Wallet newWallet = new Wallet();
@@ -74,5 +75,12 @@ public class UserService {
             throw new RuntimeException("No se encontró al usuario");
         });
         userRepository.delete(userExist);
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null || role.isBlank()) {
+            return "USER";
+        }
+        return role.startsWith("ROLE_") ? role.substring(5) : role;
     }
 }

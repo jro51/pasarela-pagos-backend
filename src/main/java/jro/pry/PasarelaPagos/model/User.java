@@ -48,7 +48,11 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        String roleName = (role == null || role.isBlank()) ? "USER" : role;
+        if (roleName.startsWith("ROLE_")) {
+            roleName = roleName.substring(5);
+        }
+        return List.of(new SimpleGrantedAuthority("ROLE_" + roleName));
     }
 
     @Override

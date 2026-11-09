@@ -135,4 +135,20 @@ class UserServiceTest {
 
         verify(userRepository, times(1)).delete(user1);
     }
+
+    @Test
+    void shouldAssignDefaultRoleWhenRoleIsNull(){
+        User user1 = new User();
+        user1.setId(1L);
+        user1.setEmail("example@test.com");
+        user1.setPassword("123456");
+
+        when(passwordEncoder.encode(ArgumentMatchers.anyString())).thenReturn("password-hasheado");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenReturn(user1);
+        when(walletRepository.save(ArgumentMatchers.any(Wallet.class))).thenReturn(new Wallet());
+
+        User createdUser = userService.create(user1);
+
+        Assertions.assertEquals("USER", createdUser.getRole());
+    }
 }
