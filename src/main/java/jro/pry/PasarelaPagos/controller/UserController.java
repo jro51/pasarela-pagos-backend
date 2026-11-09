@@ -1,7 +1,9 @@
 package jro.pry.PasarelaPagos.controller;
 
+import jakarta.validation.Valid;
+import jro.pry.PasarelaPagos.dto.UserRequestDTO;
 import jro.pry.PasarelaPagos.dto.UserResponseDTO;
-import jro.pry.PasarelaPagos.model.User;
+import jro.pry.PasarelaPagos.dto.UserUpdateDTO;
 import jro.pry.PasarelaPagos.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,14 +36,14 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user){
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(user));
+    public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserRequestDTO request){
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
-    public ResponseEntity<User> updateUser(@RequestBody User user, @PathVariable Long id){
-        return ResponseEntity.status(HttpStatus.OK).body(userService.update(user, id));
+    public ResponseEntity<UserResponseDTO> updateUser(@Valid @RequestBody UserUpdateDTO request, @PathVariable Long id){
+        return ResponseEntity.status(HttpStatus.OK).body(userService.update(request, id));
     }
 
     @DeleteMapping("/{id}")
