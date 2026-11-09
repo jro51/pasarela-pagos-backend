@@ -1,5 +1,6 @@
 package jro.pry.PasarelaPagos.controller;
 
+import jakarta.validation.Valid;
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
 import jro.pry.PasarelaPagos.model.Transaction;
 import jro.pry.PasarelaPagos.service.TransactionService;
@@ -18,7 +19,7 @@ public class TransactionController {
     }
 
     @PostMapping
-    public ResponseEntity<Transaction> processTransaction(@RequestBody TransactionRequestDTO transactionRequestDTO){
+    public ResponseEntity<Transaction> processTransaction(@Valid @RequestBody TransactionRequestDTO transactionRequestDTO){
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.processTransaction(transactionRequestDTO));
     }
 }

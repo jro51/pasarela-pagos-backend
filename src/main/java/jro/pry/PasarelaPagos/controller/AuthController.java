@@ -1,5 +1,6 @@
 package jro.pry.PasarelaPagos.controller;
 
+import jakarta.validation.Valid;
 import jro.pry.PasarelaPagos.config.JwtUtil;
 import jro.pry.PasarelaPagos.dto.JwtResponseDTO;
 import jro.pry.PasarelaPagos.dto.LoginRequestDTO;
@@ -25,7 +26,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<JwtResponseDTO> login(@RequestBody LoginRequestDTO request) {
+    public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
         // Autenticamos al usuario con Spring Security
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
