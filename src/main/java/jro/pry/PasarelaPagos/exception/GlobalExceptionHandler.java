@@ -50,7 +50,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponseDTO> handleAccessDeniedException(AccessDeniedException ex) {
-        return build(HttpStatus.FORBIDDEN, "Forbidden", "No tiene permisos para realizar esta accion");
+        String message = ex.getMessage();
+        if (message == null || message.isBlank() || "Access Denied".equals(message)) {
+            message = "No tiene permisos para realizar esta accion";
+        }
+
+        return build(HttpStatus.FORBIDDEN, "Forbidden", message);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

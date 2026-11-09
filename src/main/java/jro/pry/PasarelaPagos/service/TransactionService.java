@@ -8,10 +8,12 @@ import jro.pry.PasarelaPagos.model.Transaction;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.TransactionRepository;
 import jro.pry.PasarelaPagos.repository.WalletRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 @Service
 public class TransactionService {
@@ -24,7 +26,11 @@ public class TransactionService {
     }
 
     @Transactional
-    public Transaction processTransaction(TransactionRequestDTO transactionRequest){
+    public Transaction processTransaction(TransactionRequestDTO transactionRequest, Long authenticatedUserId){
+        if (Objects.equals(transactionRequest.getSourceWalletId(), transactionRequest.getTargetWalletId())) {
+            throw new BusinessException("La billetera de origen y destino deben ser diferentes");
+        }
+
         if(transactionRepository.findByTransactionReference(transactionRequest.getTransactionReference()).isPresent()){
             throw new ConflictException("Ya existe una transacción con esta referencia");
         }
@@ -38,6 +44,15 @@ public class TransactionService {
                 .orElseThrow(() -> {
                     throw new ResourceNotFoundException("No existe la billetera de destino");
                 });
+
+        if (sourceWalletExist.getUser() == null
+                || !Objects.equals(sourceWalletExist.getUser().getId(), authenticatedUserId)) {
+            throw new AccessDeniedException("No puedes transferir desde una billetera que no te pertenece");
+        }
+
+        if (!Objects.equals(sourceWalletExist.getCurrency(), targetWalletExist.getCurrency())) {
+            throw new BusinessException("Las billeteras deben tener la misma moneda");
+        }
 
         if(sourceWalletExist.getBalance().compareTo(transactionRequest.getAmount()) >= 0){
             BigDecimal sourceWalletDiscount = sourceWalletExist.getBalance().subtract(transactionRequest.getAmount());

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
@@ -64,6 +65,17 @@ class GlobalExceptionHandlerTest {
         Assertions.assertEquals(401, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
         Assertions.assertEquals("Credenciales inválidas", response.getBody().getMessage());
+    }
+
+    @Test
+    void shouldReturnForbiddenWithAccessDeniedMessage() {
+        ResponseEntity<ErrorResponseDTO> response = handler.handleAccessDeniedException(
+                new AccessDeniedException("No puedes transferir desde una billetera que no te pertenece"));
+
+        Assertions.assertEquals(403, response.getStatusCode().value());
+        Assertions.assertNotNull(response.getBody());
+        Assertions.assertEquals("No puedes transferir desde una billetera que no te pertenece",
+                response.getBody().getMessage());
     }
 
     @Test
