@@ -6,10 +6,10 @@ services:
     container_name: pasarela_mysql
     restart: always
     environment:
-      MYSQL_DATABASE: pasarela_db
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-pasarela_db}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
     ports:
-      - "3307:3306"
+      - "${MYSQL_PORT:-3307}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
 
