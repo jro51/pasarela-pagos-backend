@@ -11,11 +11,13 @@ import jro.pry.PasarelaPagos.repository.UserRepository;
 import jro.pry.PasarelaPagos.repository.WalletRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 
     private static final String DEFAULT_ROLE = "USER";
@@ -42,6 +44,7 @@ public class UserService {
         return toResponse(user);
     }
 
+    @Transactional
     public UserResponseDTO create(UserRequestDTO request){
         User user = new User();
         user.setEmail(request.getEmail());
@@ -64,6 +67,7 @@ public class UserService {
         );
     }
 
+    @Transactional
     public UserResponseDTO update(UserUpdateDTO request, Long id){
         User userExist = userRepository.findById(id).orElseThrow(() -> {
             throw new ResourceNotFoundException("Usuario no encontrado");
@@ -77,6 +81,7 @@ public class UserService {
         return toResponse(userRepository.save(userExist));
     }
 
+    @Transactional
     public void delete(Long id){
         User userExist = userRepository.findById(id).orElseThrow(() -> {
             throw new ResourceNotFoundException("Usuario no encontrado");

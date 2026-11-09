@@ -5,8 +5,10 @@ import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.WalletRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional(readOnly = true)
 public class WalletService {
     private final WalletRepository walletRepository;
 
