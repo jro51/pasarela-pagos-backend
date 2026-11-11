@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import jro.pry.PasarelaPagos.dto.PageResponse;
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
 import jro.pry.PasarelaPagos.dto.TransactionResponseDTO;
-import jro.pry.PasarelaPagos.model.Transaction;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.service.TransactionService;
 import org.springframework.data.domain.Pageable;
@@ -26,8 +25,9 @@ public class TransactionController {
     }
 
     @PostMapping
-    public ResponseEntity<Transaction> processTransaction(@Valid @RequestBody TransactionRequestDTO transactionRequestDTO,
-                                                          @AuthenticationPrincipal User user){
+    public ResponseEntity<TransactionResponseDTO> processTransaction(
+            @Valid @RequestBody TransactionRequestDTO transactionRequestDTO,
+            @AuthenticationPrincipal User user){
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transactionService.processTransaction(transactionRequestDTO, user.getId()));
     }

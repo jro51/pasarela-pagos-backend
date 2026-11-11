@@ -35,36 +35,28 @@ class ValidationTest {
 
         Set<String> fields = invalidFields(validator.validate(request));
 
-        Assertions.assertEquals(4, fields.size());
-        Assertions.assertTrue(fields.containsAll(Set.of(
-                "sourceWalletId", "targetWalletId", "transactionReference", "amount"
-        )));
+        Assertions.assertEquals(Set.of("targetEmail", "amount"), fields);
     }
 
     @Test
     void shouldRejectTransactionWithInvalidValues() {
         TransactionRequestDTO request = new TransactionRequestDTO();
-        request.setSourceWalletId(0L);
-        request.setTargetWalletId(-2L);
-        request.setTransactionReference("   ");
+        request.setTargetEmail("no-es-un-email");
         request.setAmount(new BigDecimal("10.999"));
 
         Set<String> fields = invalidFields(validator.validate(request));
 
-        Assertions.assertTrue(fields.contains("sourceWalletId"));
-        Assertions.assertTrue(fields.contains("targetWalletId"));
-        Assertions.assertTrue(fields.contains("transactionReference"));
-        Assertions.assertTrue(fields.contains("amount"));
+        Assertions.assertEquals(Set.of("targetEmail", "amount"), fields);
     }
 
     @Test
-    void shouldRejectTransactionReferenceLongerThan36Characters() {
+    void shouldRejectBlankTargetEmail() {
         TransactionRequestDTO request = validTransaction();
-        request.setTransactionReference("X".repeat(37));
+        request.setTargetEmail("   ");
 
         Set<String> fields = invalidFields(validator.validate(request));
 
-        Assertions.assertEquals(Set.of("transactionReference"), fields);
+        Assertions.assertEquals(Set.of("targetEmail"), fields);
     }
 
     @Test
@@ -104,9 +96,7 @@ class ValidationTest {
 
     private TransactionRequestDTO validTransaction() {
         TransactionRequestDTO request = new TransactionRequestDTO();
-        request.setSourceWalletId(1L);
-        request.setTargetWalletId(2L);
-        request.setTransactionReference("REF-123");
+        request.setTargetEmail("bob@demo.com");
         request.setAmount(new BigDecimal("10.50"));
         request.setDescription("Pago de prueba");
         return request;

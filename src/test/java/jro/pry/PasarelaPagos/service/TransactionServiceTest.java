@@ -4,12 +4,12 @@ import jro.pry.PasarelaPagos.dto.PageResponse;
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
 import jro.pry.PasarelaPagos.dto.TransactionResponseDTO;
 import jro.pry.PasarelaPagos.exception.BusinessException;
-import jro.pry.PasarelaPagos.exception.ConflictException;
 import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.Transaction;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.TransactionRepository;
+import jro.pry.PasarelaPagos.repository.UserRepository;
 import jro.pry.PasarelaPagos.repository.WalletRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -21,13 +21,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.mockito.Mockito.*;
 
@@ -40,84 +40,80 @@ class TransactionServiceTest {
     @Mock
     private TransactionRepository transactionRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private TransactionService transactionService;
 
     @Test
-    void shouldThrowConflictWhenReferenceAlreadyExists() {
+    void shouldThrowNotFoundWhenAuthenticatedUserHasNoWallet() {
         TransactionRequestDTO request = buildRequest();
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001"))
-                .thenReturn(Optional.of(new Transaction()));
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
-        ConflictException exception = Assertions.assertThrows(ConflictException.class,
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
                 () -> transactionService.processTransaction(request, 1L));
 
-        Assertions.assertEquals("Ya existe una transacción con esta referencia", exception.getMessage());
+        Assertions.assertEquals("No se encontró una billetera para este usuario", exception.getMessage());
+        verifyNoInteractions(userRepository);
     }
 
     @Test
-    void shouldThrowBusinessExceptionWhenSourceAndTargetWalletAreTheSame() {
+    void shouldThrowNotFoundWhenTargetEmailDoesNotExist() {
         TransactionRequestDTO request = buildRequest();
-        request.setTargetWalletId(request.getSourceWalletId());
+        Wallet sourceWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(sourceWallet));
+        when(userRepository.findByEmail("bob@demo.com")).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> transactionService.processTransaction(request, 1L));
+
+        Assertions.assertEquals("No existe un usuario con ese email", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenTargetUserHasNoWallet() {
+        TransactionRequestDTO request = buildRequest();
+        Wallet sourceWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+        User targetUser = user(2L, "bob@demo.com");
+
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(sourceWallet));
+        when(userRepository.findByEmail("bob@demo.com")).thenReturn(Optional.of(targetUser));
+        when(walletRepository.findByUserId(2L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> transactionService.processTransaction(request, 1L));
+
+        Assertions.assertEquals("No se encontró una billetera para el destinatario", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowBusinessExceptionWhenTransferringToSelf() {
+        TransactionRequestDTO request = buildRequest();
+        User sameUser = user(1L, "alice@demo.com");
+        Wallet sourceWallet = wallet(1L, sameUser, "100.00", "USD");
+
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(sourceWallet));
+        when(userRepository.findByEmail("bob@demo.com")).thenReturn(Optional.of(sameUser));
 
         BusinessException exception = Assertions.assertThrows(BusinessException.class,
                 () -> transactionService.processTransaction(request, 1L));
 
-        Assertions.assertEquals("La billetera de origen y destino deben ser diferentes", exception.getMessage());
-    }
-
-    @Test
-    void shouldThrowNotFoundWhenSourceWalletDoesNotExist() {
-        TransactionRequestDTO request = buildRequest();
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
-        when(walletRepository.findById(1L)).thenReturn(Optional.empty());
-
-        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> transactionService.processTransaction(request, 1L));
-
-        Assertions.assertEquals("No existe la billetera de origen", exception.getMessage());
-    }
-
-    @Test
-    void shouldThrowNotFoundWhenTargetWalletDoesNotExist() {
-        TransactionRequestDTO request = buildRequest();
-        Wallet sourceWallet = wallet(1L, user(1L), "100.00", "USD");
-
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
-        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
-        when(walletRepository.findById(2L)).thenReturn(Optional.empty());
-
-        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
-                () -> transactionService.processTransaction(request, 1L));
-
-        Assertions.assertEquals("No existe la billetera de destino", exception.getMessage());
-    }
-
-    @Test
-    void shouldThrowAccessDeniedWhenSourceWalletBelongsToAnotherUser() {
-        TransactionRequestDTO request = buildRequest();
-        Wallet sourceWallet = wallet(1L, user(2L), "100.00", "USD");
-        Wallet targetWallet = wallet(2L, user(3L), "0.00", "USD");
-
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
-        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
-        when(walletRepository.findById(2L)).thenReturn(Optional.of(targetWallet));
-
-        AccessDeniedException exception = Assertions.assertThrows(AccessDeniedException.class,
-                () -> transactionService.processTransaction(request, 1L));
-
-        Assertions.assertEquals("No puedes transferir desde una billetera que no te pertenece", exception.getMessage());
+        Assertions.assertEquals("No puedes transferirte a ti mismo", exception.getMessage());
+        verify(walletRepository, times(1)).findByUserId(1L);
     }
 
     @Test
     void shouldThrowBusinessExceptionWhenCurrenciesDoNotMatch() {
         TransactionRequestDTO request = buildRequest();
-        Wallet sourceWallet = wallet(1L, user(1L), "100.00", "USD");
-        Wallet targetWallet = wallet(2L, user(2L), "0.00", "EUR");
+        User targetUser = user(2L, "bob@demo.com");
+        Wallet sourceWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+        Wallet targetWallet = wallet(2L, targetUser, "50.00", "EUR");
 
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
-        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
-        when(walletRepository.findById(2L)).thenReturn(Optional.of(targetWallet));
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(sourceWallet));
+        when(userRepository.findByEmail("bob@demo.com")).thenReturn(Optional.of(targetUser));
+        when(walletRepository.findByUserId(2L)).thenReturn(Optional.of(targetWallet));
 
         BusinessException exception = Assertions.assertThrows(BusinessException.class,
                 () -> transactionService.processTransaction(request, 1L));
@@ -128,12 +124,13 @@ class TransactionServiceTest {
     @Test
     void shouldThrowBusinessExceptionWhenBalanceIsInsufficient() {
         TransactionRequestDTO request = buildRequest();
-        Wallet sourceWallet = wallet(1L, user(1L), "20.00", "USD");
-        Wallet targetWallet = wallet(2L, user(2L), "0.00", "USD");
+        User targetUser = user(2L, "bob@demo.com");
+        Wallet sourceWallet = wallet(1L, user(1L, "alice@demo.com"), "20.00", "USD");
+        Wallet targetWallet = wallet(2L, targetUser, "50.00", "USD");
 
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
-        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
-        when(walletRepository.findById(2L)).thenReturn(Optional.of(targetWallet));
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(sourceWallet));
+        when(userRepository.findByEmail("bob@demo.com")).thenReturn(Optional.of(targetUser));
+        when(walletRepository.findByUserId(2L)).thenReturn(Optional.of(targetWallet));
 
         BusinessException exception = Assertions.assertThrows(BusinessException.class,
                 () -> transactionService.processTransaction(request, 1L));
@@ -142,27 +139,39 @@ class TransactionServiceTest {
     }
 
     @Test
-    void shouldProcessTransactionWhenRulesAreValid() {
+    void shouldProcessTransactionAndReturnResponse() {
         TransactionRequestDTO request = buildRequest();
         request.setAmount(new BigDecimal("40.00"));
+        User targetUser = user(2L, "bob@demo.com");
+        Wallet sourceWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+        Wallet targetWallet = wallet(2L, targetUser, "50.00", "USD");
 
-        Wallet sourceWallet = wallet(1L, user(1L), "100.00", "USD");
-        Wallet targetWallet = wallet(2L, user(2L), "50.00", "USD");
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(sourceWallet));
+        when(userRepository.findByEmail("bob@demo.com")).thenReturn(Optional.of(targetUser));
+        when(walletRepository.findByUserId(2L)).thenReturn(Optional.of(targetWallet));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
+            Transaction transaction = invocation.getArgument(0);
+            transaction.setId(10L);
+            return transaction;
+        });
 
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
-        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
-        when(walletRepository.findById(2L)).thenReturn(Optional.of(targetWallet));
-        when(transactionRepository.save(any(Transaction.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        Transaction transaction = transactionService.processTransaction(request, 1L);
+        TransactionResponseDTO response = transactionService.processTransaction(request, 1L);
 
         Assertions.assertEquals(0, new BigDecimal("60.00").compareTo(sourceWallet.getBalance()));
         Assertions.assertEquals(0, new BigDecimal("90.00").compareTo(targetWallet.getBalance()));
-        Assertions.assertEquals("REF-TRANSACTION-001", transaction.getTransactionReference());
-        Assertions.assertEquals("SUCCESS", transaction.getStatus());
-        Assertions.assertEquals(0, new BigDecimal("40.00").compareTo(transaction.getAmount()));
-        Assertions.assertEquals("Pago de prueba", transaction.getDescription());
+        Assertions.assertEquals(10L, response.id());
+        Assertions.assertNotNull(response.reference());
+        Assertions.assertEquals(36, response.reference().length());
+        Assertions.assertDoesNotThrow(() -> UUID.fromString(response.reference()));
+        Assertions.assertEquals(0, new BigDecimal("40.00").compareTo(response.amount()));
+        Assertions.assertEquals("USD", response.currency());
+        Assertions.assertEquals("SUCCESS", response.status());
+        Assertions.assertEquals("OUT", response.direction());
+        Assertions.assertEquals(1L, response.sourceWalletId());
+        Assertions.assertEquals(2L, response.targetWalletId());
+        Assertions.assertEquals("bob@demo.com", response.counterpartyEmail());
+        Assertions.assertEquals("Pago de prueba", response.description());
+        Assertions.assertNotNull(response.createdAt());
 
         verify(walletRepository).save(sourceWallet);
         verify(walletRepository).save(targetWallet);
@@ -173,26 +182,26 @@ class TransactionServiceTest {
     void shouldNormalizeBlankDescriptionToNull() {
         TransactionRequestDTO request = buildRequest();
         request.setDescription("   ");
+        User targetUser = user(2L, "bob@demo.com");
+        Wallet sourceWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+        Wallet targetWallet = wallet(2L, targetUser, "50.00", "USD");
 
-        Wallet sourceWallet = wallet(1L, user(1L), "100.00", "USD");
-        Wallet targetWallet = wallet(2L, user(2L), "50.00", "USD");
-
-        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
-        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
-        when(walletRepository.findById(2L)).thenReturn(Optional.of(targetWallet));
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(sourceWallet));
+        when(userRepository.findByEmail("bob@demo.com")).thenReturn(Optional.of(targetUser));
+        when(walletRepository.findByUserId(2L)).thenReturn(Optional.of(targetWallet));
         when(transactionRepository.save(any(Transaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Transaction transaction = transactionService.processTransaction(request, 1L);
+        TransactionResponseDTO response = transactionService.processTransaction(request, 1L);
 
-        Assertions.assertNull(transaction.getDescription());
+        Assertions.assertNull(response.description());
     }
 
     @Test
     void shouldReturnOutgoingTransactionsForAuthenticatedUser() {
         Wallet myWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
         Wallet counterpartyWallet = wallet(2L, user(2L, "bob@demo.com"), "50.00", "USD");
-        Transaction transaction = transaction(10L, "REF-001", 1L, 2L, "40.00", "SUCCESS");
+        Transaction transaction = transaction(10L, "REF-001", 1L, 2L, "40.00", "SUCCESS", "Pago de prueba");
         Pageable pageable = PageRequest.of(0, 10);
         Page<Transaction> page = new PageImpl<>(List.of(transaction), pageable, 1);
 
@@ -225,7 +234,7 @@ class TransactionServiceTest {
     void shouldReturnIncomingTransactionsForAuthenticatedUser() {
         Wallet myWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
         Wallet counterpartyWallet = wallet(2L, user(2L, "bob@demo.com"), "50.00", "USD");
-        Transaction transaction = transaction(11L, "REF-002", 2L, 1L, "25.00", "SUCCESS");
+        Transaction transaction = transaction(11L, "REF-002", 2L, 1L, "25.00", "SUCCESS", "Reembolso");
         Pageable pageable = PageRequest.of(0, 10);
         Page<Transaction> page = new PageImpl<>(List.of(transaction), pageable, 1);
 
@@ -240,6 +249,7 @@ class TransactionServiceTest {
         Assertions.assertEquals("bob@demo.com", result.counterpartyEmail());
         Assertions.assertEquals(2L, result.sourceWalletId());
         Assertions.assertEquals(1L, result.targetWalletId());
+        Assertions.assertEquals("Reembolso", result.description());
     }
 
     @Test
@@ -258,7 +268,7 @@ class TransactionServiceTest {
     }
 
     @Test
-    void shouldThrowNotFoundWhenAuthenticatedUserHasNoWallet() {
+    void shouldThrowNotFoundWhenAuthenticatedUserHasNoWalletForHistory() {
         Pageable pageable = PageRequest.of(0, 10);
         when(walletRepository.findByUserId(99L)).thenReturn(Optional.empty());
 
@@ -271,10 +281,8 @@ class TransactionServiceTest {
 
     private TransactionRequestDTO buildRequest() {
         TransactionRequestDTO request = new TransactionRequestDTO();
-        request.setSourceWalletId(1L);
-        request.setTargetWalletId(2L);
+        request.setTargetEmail("bob@demo.com");
         request.setAmount(BigDecimal.valueOf(100.00));
-        request.setTransactionReference("REF-TRANSACTION-001");
         request.setDescription("Pago de prueba");
         return request;
     }
@@ -301,7 +309,7 @@ class TransactionServiceTest {
     }
 
     private Transaction transaction(Long id, String reference, Long sourceWalletId, Long targetWalletId,
-                                    String amount, String status) {
+                                    String amount, String status, String description) {
         Transaction transaction = new Transaction();
         transaction.setId(id);
         transaction.setTransactionReference(reference);
@@ -309,7 +317,7 @@ class TransactionServiceTest {
         transaction.setTargetWalletId(targetWalletId);
         transaction.setAmount(new BigDecimal(amount));
         transaction.setStatus(status);
-        transaction.setDescription("Pago de prueba");
+        transaction.setDescription(description);
         transaction.setCreatedAt(LocalDateTime.of(2026, 11, 11, 12, 0));
         return transaction;
     }

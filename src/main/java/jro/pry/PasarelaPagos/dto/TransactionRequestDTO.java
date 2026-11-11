@@ -1,6 +1,7 @@
 package jro.pry.PasarelaPagos.dto;
 
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -14,17 +15,10 @@ import java.math.BigDecimal;
 @Getter
 public class TransactionRequestDTO {
 
-    @NotNull(message = "La billetera de origen es obligatoria")
-    @Positive(message = "El id de la billetera de origen debe ser positivo")
-    private Long sourceWalletId;
-
-    @NotNull(message = "La billetera de destino es obligatoria")
-    @Positive(message = "El id de la billetera de destino debe ser positivo")
-    private Long targetWalletId;
-
-    @NotBlank(message = "La referencia de la transacción es obligatoria")
-    @Size(max = 36, message = "La referencia de la transacción no puede superar los 36 caracteres")
-    private String transactionReference;
+    @NotBlank(message = "El email del destinatario es obligatorio")
+    @Email(message = "El email del destinatario no es válido")
+    @Size(max = 150, message = "El email del destinatario no puede superar los 150 caracteres")
+    private String targetEmail;
 
     @NotNull(message = "El monto es obligatorio")
     @Positive(message = "El monto debe ser mayor que cero")

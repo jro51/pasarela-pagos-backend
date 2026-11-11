@@ -1,6 +1,7 @@
 package jro.pry.PasarelaPagos.controller;
 
 import jro.pry.PasarelaPagos.dto.PageResponse;
+import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
 import jro.pry.PasarelaPagos.dto.TransactionResponseDTO;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.service.TransactionService;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.Mockito.verify;
@@ -28,6 +31,38 @@ class TransactionControllerTest {
 
     @InjectMocks
     private TransactionController transactionController;
+
+    @Test
+    void shouldProcessTransactionForAuthenticatedUser() {
+        User principal = new User();
+        principal.setId(7L);
+
+        TransactionRequestDTO request = new TransactionRequestDTO();
+        request.setTargetEmail("bob@demo.com");
+        request.setAmount(new BigDecimal("10.00"));
+
+        TransactionResponseDTO expected = new TransactionResponseDTO(
+                1L,
+                "REF",
+                new BigDecimal("10.00"),
+                "USD",
+                "SUCCESS",
+                "OUT",
+                1L,
+                2L,
+                "bob@demo.com",
+                "Pago",
+                LocalDateTime.of(2026, 11, 11, 12, 0)
+        );
+        when(transactionService.processTransaction(request, 7L)).thenReturn(expected);
+
+        ResponseEntity<TransactionResponseDTO> response =
+                transactionController.processTransaction(request, principal);
+
+        Assertions.assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        Assertions.assertSame(expected, response.getBody());
+        verify(transactionService).processTransaction(request, 7L);
+    }
 
     @Test
     void shouldReturnAuthenticatedUserTransactionHistory() {
