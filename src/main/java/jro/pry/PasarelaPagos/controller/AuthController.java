@@ -4,6 +4,10 @@ import jakarta.validation.Valid;
 import jro.pry.PasarelaPagos.config.JwtUtil;
 import jro.pry.PasarelaPagos.dto.JwtResponseDTO;
 import jro.pry.PasarelaPagos.dto.LoginRequestDTO;
+import jro.pry.PasarelaPagos.dto.UserRequestDTO;
+import jro.pry.PasarelaPagos.dto.UserResponseDTO;
+import jro.pry.PasarelaPagos.service.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -19,10 +23,20 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final UserService userService;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, UserService userService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.userService = userService;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<JwtResponseDTO> register(@Valid @RequestBody UserRequestDTO request) {
+        UserResponseDTO createdUser = userService.create(request);
+        String token = jwtUtil.generateToken(createdUser.getEmail());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(new JwtResponseDTO(token));
     }
 
     @PostMapping("/login")

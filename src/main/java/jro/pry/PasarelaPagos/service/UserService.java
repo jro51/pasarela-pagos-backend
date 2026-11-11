@@ -4,6 +4,7 @@ import jro.pry.PasarelaPagos.dto.UserRequestDTO;
 import jro.pry.PasarelaPagos.dto.UserResponseDTO;
 import jro.pry.PasarelaPagos.dto.UserUpdateDTO;
 import jro.pry.PasarelaPagos.dto.WalletResponseDTO;
+import jro.pry.PasarelaPagos.exception.ConflictException;
 import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.model.Wallet;
@@ -46,6 +47,10 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO create(UserRequestDTO request){
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ConflictException("El email ya está registrado");
+        }
+
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));

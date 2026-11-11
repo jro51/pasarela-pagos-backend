@@ -1,5 +1,6 @@
 package jro.pry.PasarelaPagos.controller;
 
+import jro.pry.PasarelaPagos.dto.UserRequestDTO;
 import jro.pry.PasarelaPagos.dto.UserResponseDTO;
 import jro.pry.PasarelaPagos.dto.WalletResponseDTO;
 import jro.pry.PasarelaPagos.model.User;
@@ -48,5 +49,26 @@ class UserControllerTest {
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertSame(expected, response.getBody());
         verify(userService).findById(7L);
+    }
+
+    @Test
+    void shouldCreateUser() {
+        UserRequestDTO request = new UserRequestDTO();
+        request.setEmail("new@demo.com");
+        request.setPassword("Demo1234!");
+
+        UserResponseDTO expected = new UserResponseDTO(
+                8L,
+                "new@demo.com",
+                "USER",
+                List.of()
+        );
+        when(userService.create(request)).thenReturn(expected);
+
+        ResponseEntity<UserResponseDTO> response = userController.createUser(request);
+
+        Assertions.assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        Assertions.assertSame(expected, response.getBody());
+        verify(userService).create(request);
     }
 }

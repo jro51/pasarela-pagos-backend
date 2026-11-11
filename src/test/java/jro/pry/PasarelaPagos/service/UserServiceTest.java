@@ -3,6 +3,7 @@ package jro.pry.PasarelaPagos.service;
 import jro.pry.PasarelaPagos.dto.UserRequestDTO;
 import jro.pry.PasarelaPagos.dto.UserResponseDTO;
 import jro.pry.PasarelaPagos.dto.UserUpdateDTO;
+import jro.pry.PasarelaPagos.exception.ConflictException;
 import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
 import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.model.Wallet;
@@ -98,6 +99,7 @@ class UserServiceTest {
         request.setEmail("example@test.com");
         request.setPassword("123456");
 
+        when(userRepository.existsByEmail("example@test.com")).thenReturn(false);
         when(passwordEncoder.encode("123456")).thenReturn("password-hasheado");
         when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
@@ -122,6 +124,22 @@ class UserServiceTest {
         verify(userRepository).save(userCaptor.capture());
         Assertions.assertEquals("password-hasheado", userCaptor.getValue().getPassword());
         Assertions.assertEquals("USER", userCaptor.getValue().getRole());
+    }
+
+    @Test
+    void shouldRejectEmailAlreadyRegistered() {
+        UserRequestDTO request = new UserRequestDTO();
+        request.setEmail("duplicate@test.com");
+        request.setPassword("123456");
+
+        when(userRepository.existsByEmail("duplicate@test.com")).thenReturn(true);
+
+        ConflictException exception = Assertions.assertThrows(ConflictException.class,
+                () -> userService.create(request));
+
+        Assertions.assertEquals("El email ya está registrado", exception.getMessage());
+        verify(userRepository, never()).save(ArgumentMatchers.any(User.class));
+        verifyNoInteractions(walletRepository, passwordEncoder);
     }
 
     @Test
