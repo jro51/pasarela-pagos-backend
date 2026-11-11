@@ -3,6 +3,7 @@ package jro.pry.PasarelaPagos.security;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jro.pry.PasarelaPagos.dto.ErrorCode;
 import jro.pry.PasarelaPagos.dto.ErrorResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -31,6 +32,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
                 LocalDateTime.now(),
                 HttpStatus.FORBIDDEN.value(),
                 "Forbidden",
+                ErrorCode.FORBIDDEN,
                 "No tiene permisos para realizar esta accion"
         );
 

@@ -28,7 +28,9 @@ class RestAuthenticationEntryPointTest {
         JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
         Assertions.assertEquals(401, body.get("status").asInt());
         Assertions.assertEquals("Unauthorized", body.get("error").asText());
+        Assertions.assertEquals("UNAUTHORIZED", body.get("code").asText());
         Assertions.assertEquals("No autorizado", body.get("message").asText());
+        Assertions.assertEquals(0, body.get("fieldErrors").size());
     }
 
     @Test
@@ -41,6 +43,7 @@ class RestAuthenticationEntryPointTest {
 
         JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
         Assertions.assertEquals(401, body.get("status").asInt());
+        Assertions.assertEquals("UNAUTHORIZED", body.get("code").asText());
         Assertions.assertEquals("Token inválido o expirado", body.get("message").asText());
     }
 }

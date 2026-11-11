@@ -25,6 +25,8 @@ class RestAccessDeniedHandlerTest {
         JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
         Assertions.assertEquals(403, body.get("status").asInt());
         Assertions.assertEquals("Forbidden", body.get("error").asText());
+        Assertions.assertEquals("FORBIDDEN", body.get("code").asText());
         Assertions.assertEquals("No tiene permisos para realizar esta accion", body.get("message").asText());
+        Assertions.assertEquals(0, body.get("fieldErrors").size());
     }
 }

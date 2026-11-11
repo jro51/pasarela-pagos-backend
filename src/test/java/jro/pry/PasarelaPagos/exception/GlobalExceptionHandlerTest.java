@@ -1,5 +1,6 @@
 package jro.pry.PasarelaPagos.exception;
 
+import jro.pry.PasarelaPagos.dto.ErrorCode;
 import jro.pry.PasarelaPagos.dto.ErrorResponseDTO;
 import jro.pry.PasarelaPagos.dto.LoginRequestDTO;
 import org.junit.jupiter.api.Assertions;
@@ -13,6 +14,8 @@ import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
+import java.util.Map;
+
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
@@ -24,17 +27,21 @@ class GlobalExceptionHandlerTest {
 
         Assertions.assertEquals(404, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
+        Assertions.assertEquals(ErrorCode.RESOURCE_NOT_FOUND, response.getBody().getCode());
         Assertions.assertEquals("Usuario no encontrado", response.getBody().getMessage());
+        Assertions.assertTrue(response.getBody().getFieldErrors().isEmpty());
     }
 
     @Test
     void shouldReturnConflictForConflictException() {
         ResponseEntity<ErrorResponseDTO> response = handler.handleConflictException(
-                new ConflictException("Ya existe una transacción con esta referencia"));
+                new ConflictException("Ya existe un registro con esos datos"));
 
         Assertions.assertEquals(409, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
-        Assertions.assertEquals("Ya existe una transacción con esta referencia", response.getBody().getMessage());
+        Assertions.assertEquals(ErrorCode.CONFLICT, response.getBody().getCode());
+        Assertions.assertEquals("Ya existe un registro con esos datos", response.getBody().getMessage());
+        Assertions.assertTrue(response.getBody().getFieldErrors().isEmpty());
     }
 
     @Test
@@ -44,7 +51,9 @@ class GlobalExceptionHandlerTest {
 
         Assertions.assertEquals(409, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
+        Assertions.assertEquals(ErrorCode.CONFLICT, response.getBody().getCode());
         Assertions.assertEquals("Ya existe un registro con esos datos", response.getBody().getMessage());
+        Assertions.assertTrue(response.getBody().getFieldErrors().isEmpty());
     }
 
     @Test
@@ -54,7 +63,9 @@ class GlobalExceptionHandlerTest {
 
         Assertions.assertEquals(400, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
+        Assertions.assertEquals(ErrorCode.BUSINESS_ERROR, response.getBody().getCode());
         Assertions.assertEquals("Fondos insuficientes", response.getBody().getMessage());
+        Assertions.assertTrue(response.getBody().getFieldErrors().isEmpty());
     }
 
     @Test
@@ -64,7 +75,9 @@ class GlobalExceptionHandlerTest {
 
         Assertions.assertEquals(401, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
+        Assertions.assertEquals(ErrorCode.UNAUTHORIZED, response.getBody().getCode());
         Assertions.assertEquals("Credenciales inválidas", response.getBody().getMessage());
+        Assertions.assertTrue(response.getBody().getFieldErrors().isEmpty());
     }
 
     @Test
@@ -74,8 +87,10 @@ class GlobalExceptionHandlerTest {
 
         Assertions.assertEquals(403, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
+        Assertions.assertEquals(ErrorCode.FORBIDDEN, response.getBody().getCode());
         Assertions.assertEquals("No puedes transferir desde una billetera que no te pertenece",
                 response.getBody().getMessage());
+        Assertions.assertTrue(response.getBody().getFieldErrors().isEmpty());
     }
 
     @Test
@@ -90,7 +105,9 @@ class GlobalExceptionHandlerTest {
 
         Assertions.assertEquals(400, response.getStatusCode().value());
         Assertions.assertNotNull(response.getBody());
-        Assertions.assertTrue(response.getBody().getMessage().contains("email"));
-        Assertions.assertTrue(response.getBody().getMessage().contains("El email no tiene un formato válido"));
+        Assertions.assertEquals(ErrorCode.VALIDATION_ERROR, response.getBody().getCode());
+        Assertions.assertEquals("La solicitud contiene errores de validación", response.getBody().getMessage());
+        Assertions.assertEquals(Map.of("email", "El email no tiene un formato válido"),
+                response.getBody().getFieldErrors());
     }
 }
