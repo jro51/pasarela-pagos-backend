@@ -1,5 +1,7 @@
 package jro.pry.PasarelaPagos.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jro.pry.PasarelaPagos.config.JwtUtil;
 import jro.pry.PasarelaPagos.dto.JwtResponseDTO;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Autenticación", description = "Registro e inicio de sesión")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -31,6 +34,9 @@ public class AuthController {
         this.userService = userService;
     }
 
+    @Operation(
+            summary = "Registrar usuario",
+            description = "Crea un usuario con rol USER y una billetera USD en 0.00. Devuelve un JWT.")
     @PostMapping("/register")
     public ResponseEntity<JwtResponseDTO> register(@Valid @RequestBody UserRequestDTO request) {
         UserResponseDTO createdUser = userService.create(request);
@@ -39,6 +45,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new JwtResponseDTO(token));
     }
 
+    @Operation(summary = "Iniciar sesión")
     @PostMapping("/login")
     public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
         // Autenticamos al usuario con Spring Security

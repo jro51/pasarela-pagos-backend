@@ -1,5 +1,8 @@
 package jro.pry.PasarelaPagos.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jro.pry.PasarelaPagos.dto.PageResponse;
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
@@ -16,6 +19,8 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/transactions")
+@Tag(name = "Transferencias", description = "Transferencias P2P e historial")
+@SecurityRequirement(name = "BearerAuth")
 public class TransactionController {
 
     private final TransactionService transactionService;
@@ -24,6 +29,7 @@ public class TransactionController {
         this.transactionService = transactionService;
     }
 
+    @Operation(summary = "Transferir por email")
     @PostMapping
     public ResponseEntity<TransactionResponseDTO> processTransaction(
             @Valid @RequestBody TransactionRequestDTO transactionRequestDTO,
@@ -32,6 +38,7 @@ public class TransactionController {
                 .body(transactionService.processTransaction(transactionRequestDTO, user.getId()));
     }
 
+    @Operation(summary = "Consultar historial paginado")
     @GetMapping("/me")
     public ResponseEntity<PageResponse<TransactionResponseDTO>> findMyTransactions(
             @AuthenticationPrincipal User user,
