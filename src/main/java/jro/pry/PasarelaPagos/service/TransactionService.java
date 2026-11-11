@@ -79,6 +79,7 @@ public class TransactionService {
             transaction.setTargetWalletId(transactionRequest.getTargetWalletId());
             transaction.setAmount(transactionRequest.getAmount());
             transaction.setStatus("SUCCESS");
+            transaction.setDescription(normalizeDescription(transactionRequest.getDescription()));
 
             return transactionRepository.save(transaction);
 
@@ -129,8 +130,13 @@ public class TransactionService {
                 transaction.getSourceWalletId(),
                 transaction.getTargetWalletId(),
                 counterpartyEmail,
+                transaction.getDescription(),
                 transaction.getCreatedAt()
         );
+    }
+
+    private String normalizeDescription(String description) {
+        return description == null || description.isBlank() ? null : description.trim();
     }
 
 }

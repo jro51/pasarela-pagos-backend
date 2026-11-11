@@ -33,6 +33,9 @@ public class Transaction {
     @Column(nullable = false, length = 20)
     private String status; // PENDING, SUCCESS, FAILED
 
+    @Column(name = "description", length = 255)
+    private String description;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

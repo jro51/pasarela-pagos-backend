@@ -13,6 +13,7 @@ public record TransactionResponseDTO(
         Long sourceWalletId,
         Long targetWalletId,
         String counterpartyEmail,
+        String description,
         LocalDateTime createdAt
 ) {
 }

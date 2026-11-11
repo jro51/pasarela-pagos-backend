@@ -31,4 +31,7 @@ public class TransactionRequestDTO {
     @Digits(integer = 13, fraction = 2, message = "El monto debe tener máximo 13 enteros y 2 decimales")
     private BigDecimal amount;
 
+    @Size(max = 255, message = "La descripción no puede superar los 255 caracteres")
+    private String description;
+
 }

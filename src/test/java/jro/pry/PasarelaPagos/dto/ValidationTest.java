@@ -68,6 +68,16 @@ class ValidationTest {
     }
 
     @Test
+    void shouldRejectDescriptionLongerThan255Characters() {
+        TransactionRequestDTO request = validTransaction();
+        request.setDescription("X".repeat(256));
+
+        Set<String> fields = invalidFields(validator.validate(request));
+
+        Assertions.assertEquals(Set.of("description"), fields);
+    }
+
+    @Test
     void shouldAcceptValidTransaction() {
         Assertions.assertTrue(validator.validate(validTransaction()).isEmpty());
     }
@@ -98,6 +108,7 @@ class ValidationTest {
         request.setTargetWalletId(2L);
         request.setTransactionReference("REF-123");
         request.setAmount(new BigDecimal("10.50"));
+        request.setDescription("Pago de prueba");
         return request;
     }
 

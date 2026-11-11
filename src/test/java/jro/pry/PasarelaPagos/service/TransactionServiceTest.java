@@ -162,10 +162,30 @@ class TransactionServiceTest {
         Assertions.assertEquals("REF-TRANSACTION-001", transaction.getTransactionReference());
         Assertions.assertEquals("SUCCESS", transaction.getStatus());
         Assertions.assertEquals(0, new BigDecimal("40.00").compareTo(transaction.getAmount()));
+        Assertions.assertEquals("Pago de prueba", transaction.getDescription());
 
         verify(walletRepository).save(sourceWallet);
         verify(walletRepository).save(targetWallet);
         verify(transactionRepository).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldNormalizeBlankDescriptionToNull() {
+        TransactionRequestDTO request = buildRequest();
+        request.setDescription("   ");
+
+        Wallet sourceWallet = wallet(1L, user(1L), "100.00", "USD");
+        Wallet targetWallet = wallet(2L, user(2L), "50.00", "USD");
+
+        when(transactionRepository.findByTransactionReference("REF-TRANSACTION-001")).thenReturn(Optional.empty());
+        when(walletRepository.findById(1L)).thenReturn(Optional.of(sourceWallet));
+        when(walletRepository.findById(2L)).thenReturn(Optional.of(targetWallet));
+        when(transactionRepository.save(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transaction transaction = transactionService.processTransaction(request, 1L);
+
+        Assertions.assertNull(transaction.getDescription());
     }
 
     @Test
@@ -193,6 +213,7 @@ class TransactionServiceTest {
         Assertions.assertEquals(1L, result.sourceWalletId());
         Assertions.assertEquals(2L, result.targetWalletId());
         Assertions.assertEquals("bob@demo.com", result.counterpartyEmail());
+        Assertions.assertEquals("Pago de prueba", result.description());
         Assertions.assertEquals(LocalDateTime.of(2026, 11, 11, 12, 0), result.createdAt());
         Assertions.assertEquals(0, response.page());
         Assertions.assertEquals(10, response.size());
@@ -254,6 +275,7 @@ class TransactionServiceTest {
         request.setTargetWalletId(2L);
         request.setAmount(BigDecimal.valueOf(100.00));
         request.setTransactionReference("REF-TRANSACTION-001");
+        request.setDescription("Pago de prueba");
         return request;
     }
 
@@ -287,6 +309,7 @@ class TransactionServiceTest {
         transaction.setTargetWalletId(targetWalletId);
         transaction.setAmount(new BigDecimal(amount));
         transaction.setStatus(status);
+        transaction.setDescription("Pago de prueba");
         transaction.setCreatedAt(LocalDateTime.of(2026, 11, 11, 12, 0));
         return transaction;
     }
