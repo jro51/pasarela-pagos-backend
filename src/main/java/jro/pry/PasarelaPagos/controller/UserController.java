@@ -4,10 +4,12 @@ import jakarta.validation.Valid;
 import jro.pry.PasarelaPagos.dto.UserRequestDTO;
 import jro.pry.PasarelaPagos.dto.UserResponseDTO;
 import jro.pry.PasarelaPagos.dto.UserUpdateDTO;
+import jro.pry.PasarelaPagos.model.User;
 import jro.pry.PasarelaPagos.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +28,11 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponseDTO>> findAllUsers(){
         return ResponseEntity.status(HttpStatus.OK).body(userService.findAll());
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDTO> findCurrentUser(@AuthenticationPrincipal User user){
+        return ResponseEntity.status(HttpStatus.OK).body(userService.findById(user.getId()));
     }
 
     @GetMapping("/{id}")
