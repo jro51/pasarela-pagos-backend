@@ -1,6 +1,8 @@
 package jro.pry.PasarelaPagos.service;
 
+import jro.pry.PasarelaPagos.dto.PageResponse;
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
+import jro.pry.PasarelaPagos.dto.TransactionResponseDTO;
 import jro.pry.PasarelaPagos.exception.BusinessException;
 import jro.pry.PasarelaPagos.exception.ConflictException;
 import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
@@ -8,12 +10,18 @@ import jro.pry.PasarelaPagos.model.Transaction;
 import jro.pry.PasarelaPagos.model.Wallet;
 import jro.pry.PasarelaPagos.repository.TransactionRepository;
 import jro.pry.PasarelaPagos.repository.WalletRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class TransactionService {
@@ -77,6 +85,52 @@ public class TransactionService {
         }else{
             throw new BusinessException("Fondos insuficientes");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<TransactionResponseDTO> findMyTransactions(Long authenticatedUserId, Pageable pageable) {
+        Wallet myWallet = walletRepository.findByUserId(authenticatedUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró una billetera para este usuario"));
+
+        Page<Transaction> transactions = transactionRepository.findByWalletId(myWallet.getId(), pageable);
+
+        Set<Long> counterpartyWalletIds = transactions.getContent().stream()
+                .map(transaction -> Objects.equals(transaction.getSourceWalletId(), myWallet.getId())
+                        ? transaction.getTargetWalletId()
+                        : transaction.getSourceWalletId())
+                .collect(Collectors.toSet());
+
+        Map<Long, Wallet> counterpartyWallets = counterpartyWalletIds.isEmpty()
+                ? Map.of()
+                : walletRepository.findAllWithUserByIds(counterpartyWalletIds).stream()
+                        .collect(Collectors.toMap(Wallet::getId, Function.identity()));
+
+        return PageResponse.from(transactions.map(transaction ->
+                toResponse(transaction, myWallet, counterpartyWallets)));
+    }
+
+    private TransactionResponseDTO toResponse(Transaction transaction, Wallet myWallet,
+                                               Map<Long, Wallet> counterpartyWallets) {
+        boolean outgoing = Objects.equals(transaction.getSourceWalletId(), myWallet.getId());
+        Long counterpartyWalletId = outgoing ? transaction.getTargetWalletId() : transaction.getSourceWalletId();
+        Wallet counterpartyWallet = counterpartyWallets.get(counterpartyWalletId);
+
+        String counterpartyEmail = counterpartyWallet != null && counterpartyWallet.getUser() != null
+                ? counterpartyWallet.getUser().getEmail()
+                : null;
+
+        return new TransactionResponseDTO(
+                transaction.getId(),
+                transaction.getTransactionReference(),
+                transaction.getAmount(),
+                myWallet.getCurrency(),
+                transaction.getStatus(),
+                outgoing ? "OUT" : "IN",
+                transaction.getSourceWalletId(),
+                transaction.getTargetWalletId(),
+                counterpartyEmail,
+                transaction.getCreatedAt()
+        );
     }
 
 }

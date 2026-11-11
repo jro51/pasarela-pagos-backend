@@ -9,6 +9,10 @@ jwt:
   expiration-ms: ${JWT_EXPIRATION_MS:36000000}
 
 spring:
+  data:
+    web:
+      pageable:
+        max-page-size: 50
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3307/pasarela_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     username: ${DB_USER:root}

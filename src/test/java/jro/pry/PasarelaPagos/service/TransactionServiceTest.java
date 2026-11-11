@@ -1,6 +1,8 @@
 package jro.pry.PasarelaPagos.service;
 
+import jro.pry.PasarelaPagos.dto.PageResponse;
 import jro.pry.PasarelaPagos.dto.TransactionRequestDTO;
+import jro.pry.PasarelaPagos.dto.TransactionResponseDTO;
 import jro.pry.PasarelaPagos.exception.BusinessException;
 import jro.pry.PasarelaPagos.exception.ConflictException;
 import jro.pry.PasarelaPagos.exception.ResourceNotFoundException;
@@ -15,10 +17,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.mockito.Mockito.*;
 
@@ -159,6 +168,86 @@ class TransactionServiceTest {
         verify(transactionRepository).save(any(Transaction.class));
     }
 
+    @Test
+    void shouldReturnOutgoingTransactionsForAuthenticatedUser() {
+        Wallet myWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+        Wallet counterpartyWallet = wallet(2L, user(2L, "bob@demo.com"), "50.00", "USD");
+        Transaction transaction = transaction(10L, "REF-001", 1L, 2L, "40.00", "SUCCESS");
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Transaction> page = new PageImpl<>(List.of(transaction), pageable, 1);
+
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(myWallet));
+        when(transactionRepository.findByWalletId(1L, pageable)).thenReturn(page);
+        when(walletRepository.findAllWithUserByIds(Set.of(2L))).thenReturn(List.of(counterpartyWallet));
+
+        PageResponse<TransactionResponseDTO> response = transactionService.findMyTransactions(1L, pageable);
+
+        Assertions.assertEquals(1, response.content().size());
+        TransactionResponseDTO result = response.content().get(0);
+        Assertions.assertEquals(10L, result.id());
+        Assertions.assertEquals("REF-001", result.reference());
+        Assertions.assertEquals(0, new BigDecimal("40.00").compareTo(result.amount()));
+        Assertions.assertEquals("USD", result.currency());
+        Assertions.assertEquals("SUCCESS", result.status());
+        Assertions.assertEquals("OUT", result.direction());
+        Assertions.assertEquals(1L, result.sourceWalletId());
+        Assertions.assertEquals(2L, result.targetWalletId());
+        Assertions.assertEquals("bob@demo.com", result.counterpartyEmail());
+        Assertions.assertEquals(LocalDateTime.of(2026, 11, 11, 12, 0), result.createdAt());
+        Assertions.assertEquals(0, response.page());
+        Assertions.assertEquals(10, response.size());
+        Assertions.assertEquals(1, response.totalElements());
+        Assertions.assertEquals(1, response.totalPages());
+    }
+
+    @Test
+    void shouldReturnIncomingTransactionsForAuthenticatedUser() {
+        Wallet myWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+        Wallet counterpartyWallet = wallet(2L, user(2L, "bob@demo.com"), "50.00", "USD");
+        Transaction transaction = transaction(11L, "REF-002", 2L, 1L, "25.00", "SUCCESS");
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Transaction> page = new PageImpl<>(List.of(transaction), pageable, 1);
+
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(myWallet));
+        when(transactionRepository.findByWalletId(1L, pageable)).thenReturn(page);
+        when(walletRepository.findAllWithUserByIds(Set.of(2L))).thenReturn(List.of(counterpartyWallet));
+
+        PageResponse<TransactionResponseDTO> response = transactionService.findMyTransactions(1L, pageable);
+
+        TransactionResponseDTO result = response.content().get(0);
+        Assertions.assertEquals("IN", result.direction());
+        Assertions.assertEquals("bob@demo.com", result.counterpartyEmail());
+        Assertions.assertEquals(2L, result.sourceWalletId());
+        Assertions.assertEquals(1L, result.targetWalletId());
+    }
+
+    @Test
+    void shouldReturnEmptyHistoryWhenUserHasNoTransactions() {
+        Wallet myWallet = wallet(1L, user(1L, "alice@demo.com"), "100.00", "USD");
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(myWallet));
+        when(transactionRepository.findByWalletId(1L, pageable)).thenReturn(Page.<Transaction>empty(pageable));
+
+        PageResponse<TransactionResponseDTO> response = transactionService.findMyTransactions(1L, pageable);
+
+        Assertions.assertTrue(response.content().isEmpty());
+        Assertions.assertEquals(0, response.totalElements());
+        verify(walletRepository, never()).findAllWithUserByIds(any());
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenAuthenticatedUserHasNoWallet() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(walletRepository.findByUserId(99L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = Assertions.assertThrows(ResourceNotFoundException.class,
+                () -> transactionService.findMyTransactions(99L, pageable));
+
+        Assertions.assertEquals("No se encontró una billetera para este usuario", exception.getMessage());
+        verify(transactionRepository, never()).findByWalletId(anyLong(), any(Pageable.class));
+    }
+
     private TransactionRequestDTO buildRequest() {
         TransactionRequestDTO request = new TransactionRequestDTO();
         request.setSourceWalletId(1L);
@@ -181,5 +270,24 @@ class TransactionServiceTest {
         User user = new User();
         user.setId(id);
         return user;
+    }
+
+    private User user(Long id, String email) {
+        User user = user(id);
+        user.setEmail(email);
+        return user;
+    }
+
+    private Transaction transaction(Long id, String reference, Long sourceWalletId, Long targetWalletId,
+                                    String amount, String status) {
+        Transaction transaction = new Transaction();
+        transaction.setId(id);
+        transaction.setTransactionReference(reference);
+        transaction.setSourceWalletId(sourceWalletId);
+        transaction.setTargetWalletId(targetWalletId);
+        transaction.setAmount(new BigDecimal(amount));
+        transaction.setStatus(status);
+        transaction.setCreatedAt(LocalDateTime.of(2026, 11, 11, 12, 0));
+        return transaction;
     }
 }
