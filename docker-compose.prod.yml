@@ -1,0 +1,22 @@
+name: pasarela-prod
+
+services:
+  api:
+    image: ghcr.io/jro51/pasarela-pagos-backend:latest
+    container_name: pasarela-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # En produccion no mostrar SQL y validar el esquema creado por Flyway.
+      SPRING_JPA_SHOW_SQL: "false"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+    ports:
+      # Temporal
+      - "8080:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
